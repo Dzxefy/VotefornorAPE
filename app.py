@@ -18,13 +18,11 @@ if not os.path.exists(CONFIG_PATH):
         f.write("maxUploadSize = 1024\n")  # 设置为 1024 MB
     print("Config created. Please restart the app if it was already running.")
 else:
-    # 可选：检查现有配置是否足够大
     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
         content = f.read()
         if "maxUploadSize" not in content:
             with open(CONFIG_PATH, "a", encoding="utf-8") as f:
                 f.write("\n[server]\nmaxUploadSize = 1024\n")
-        # 简单检查数值（如果需要更复杂的解析，建议用 configparser 或 toml 库）
         elif "maxUploadSize = 200" in content:
              print("Warning: maxUploadSize is set to 200MB. Consider increasing it for medical images.")
 
@@ -33,7 +31,6 @@ else:
 import streamlit as st
 import pandas as pd
 import joblib
-import tempfile
 import os
 from radiomicspipeline import single_patient_feature_extractor
 from UnifiedRFESVCEnsemble import UnifiedRFESVCEnsemble
@@ -49,7 +46,7 @@ model, expected_features = load_resources()
 
 # 2. 页面 UI
 st.title("Radiomics-Based Prognostic Assessment Tool for Normotensive Acute Pulmonary Embolism Patients")
-st.write("Upload CT image + segmentation mask, auto-extract radiomics features and predict 30-day prognosis.")
+st.write("Input file paths of CT image + segmentation mask, auto-extract radiomics features and predict 30-day prognosis.")
 
 # 3. RV/LV 手动输入 —— 改成 optional，默认 0 表示"未输入"
 col1, col2 = st.columns(2)
@@ -58,49 +55,58 @@ with col1:
 with col2:
     lv_value = st.number_input("LV diameter (mm, optional)", min_value=0.0, step=0.1, value=0.0)
 
-# 简单判定：用户两个都没动（仍是 0）就算没输入
 rvlv_provided = not (rv_value == 0.0 and lv_value == 0.0)
 
-# 4. 图像 / mask 上传（唯一入口，xlsx 分支已删除）
-st.subheader("Upload Image + Mask")
-img_file = st.file_uploader(
-    "CT image (.nii)",
-    type=["nii"],
-    key="img"
+# 4. 图像 / mask 路径输入（替换原来的 file_uploader）
+st.subheader("Input Image & Mask File Paths")
+img_path = st.text_input(
+    "CT image path (e.g., /data/patient01/ct.nii.gz)",
+    key="img_path",
+    placeholder="/full/path/to/image.nii.gz"
 )
-mask_file = st.file_uploader(
-    "Segmentation mask (.nii)",
-    type=["nii"],
-    key="mask"
+mask_path = st.text_input(
+    "Segmentation mask path (e.g., /data/patient01/mask.nii.gz)",
+    key="mask_path",
+    placeholder="/full/path/to/mask.nii.gz"
 )
+
+st.caption("⚠ Note: The paths must be accessible from the machine/server running this Streamlit app.")
 
 # 5. 预测主逻辑
 if st.button("Start Prediction"):
-    if img_file is None or mask_file is None:
-        st.warning("Please upload both CT image and segmentation mask.")
+    # 5.0 路径校验
+    if not img_path or not mask_path:
+        st.warning("Please provide both CT image and segmentation mask paths.")
+        st.stop()
+    
+    if not os.path.exists(img_path):
+        st.error(f"File not found: {img_path}")
+        st.stop()
+    
+    if not os.path.exists(mask_path):
+        st.error(f"File not found: {mask_path}")
+        st.stop()
+    
+    # 检查后缀名
+    valid_ext = (".nii", ".nii.gz")
+    if not img_path.endswith(valid_ext):
+        st.error("CT image must have a .nii or .nii.gz extension.")
+        st.stop()
+    if not mask_path.endswith(valid_ext):
+        st.error("Mask must have a .nii or .nii.gz extension.")
         st.stop()
 
     try:
-        # 5.1 存临时 nii（SimpleITK 只能读文件路径）
-        with tempfile.NamedTemporaryFile(suffix=f".{img_file.name.split('.')[-1]}", delete=False) as tmp_img:
-            tmp_img.write(img_file.getbuffer())
-            img_path = tmp_img.name
-        with tempfile.NamedTemporaryFile(suffix=f".{mask_file.name.split('.')[-1]}", delete=False) as tmp_mask:
-            tmp_mask.write(mask_file.getbuffer())
-            mask_path = tmp_mask.name
-
-        # 5.2 自动提征
+        # 5.1 自动提征（直接传入路径，无需临时文件）
         with st.spinner("Extracting radiomics features..."):
             feat_df = single_patient_feature_extractor(img_path, mask_path)
 
-        # 5.3 RV/LV —— 只有用户输入了才拼（⚠ 前提：训练时 feature_list.pkl 里本来就有 RV/LV，
-        #     如果训练时没把它们当特征，这两行其实会被下一行的 expected_features 切片滤掉，
-        #     不影响模型；但 ratio 展示还能用）
+        # 5.2 RV/LV —— 只有用户输入了才拼
         if rvlv_provided:
             feat_df["RV"] = rv_value
             feat_df["LV"] = lv_value
 
-        # 5.4 对齐训练特征列
+        # 5.3 对齐训练特征列
         missing = [f for f in expected_features if f not in feat_df.columns]
         if missing:
             st.error(f"Extracted features missing columns (check radiomics settings): {missing[:5]}...")
@@ -110,11 +116,9 @@ if st.button("Start Prediction"):
         st.success("Feature extraction done!")
         st.dataframe(infer_df)
 
-    finally:
-        if 'img_path' in locals() and os.path.exists(img_path):
-            os.remove(img_path)
-        if 'mask_path' in locals() and os.path.exists(mask_path):
-            os.remove(mask_path)
+    except Exception as e:
+        st.error(f"An error occurred during feature extraction or prediction: {str(e)}")
+        st.stop()
 
     # 6. 预测 + 展示
     pred_proba = model.predict(infer_df)[0]
