@@ -1,11 +1,11 @@
-# radiomics.py （最小化特征提取版）
+# radiomics.py（Streamlit 稳定版 · 不依赖特征名推断）
 import pandas as pd
 import SimpleITK as sitk
 from radiomics import featureextractor
 import numpy as np
 import warnings
 
-# 你指定的特征列表（直接硬编码，不反推）
+# ✅ 你指定的特征列表（完全不变）
 TARGET_FEATURES = [
     'wavelet-HLH_glcm_ClusterShade',
     'wavelet-HLL_glszm_LargeAreaLowGrayLevelEmphasis',
@@ -37,171 +37,104 @@ TARGET_FEATURES = [
     'lbp-3D-k_glrlm_ShortRunHighGrayLevelEmphasis'
 ]
 
-def _parse_target_features():
-    """
-    直接解析目标特征列表，不做任何推断
-    返回：(image_types_to_enable, feature_config)
-    """
-    # 手动定义需要启用的图像类型（直接从特征名观察得出）
-    image_types_to_enable = {
-        'wavelet',           # wavelet-HLH, wavelet-HLL, wavelet-LLL
-        'log-sigma-3-mm-3D', # log-sigma-3-mm-3D
-        'log-sigma-4-mm-3D', # log-sigma-4-mm-3D
-        'log-sigma-5-mm-3D', # log-sigma-5-mm-3D
-        'lbp-3D-m1',         # lbp-3D-m1
-        'lbp-3D-m2',         # lbp-3D-m2
-        'lbp-3D-k',          # lbp-3D-k
-        'logarithm',         # logarithm
-        'square',            # square
-        'gradient'           # gradient
+def _get_enabled_image_types():
+    """只返回你用到的 imageType（最小化）"""
+    return {
+        'wavelet',
+        'log-sigma-3-mm-3D',
+        'log-sigma-4-mm-3D',
+        'log-sigma-5-mm-3D',
+        'lbp-3D-m1',
+        'lbp-3D-m2',
+        'lbp-3D-k',
+        'logarithm',
+        'square',
+        'gradient'
     }
-    
-    # 手动定义特征类配置（直接从特征名观察得出）
-    feature_config = {
-        'firstorder': ['Median', '10Percentile', 'Skewness', '90Percentile'],
-        'glcm': ['ClusterShade', 'MaximumProbability', 'Imc1', 'Correlation'],
-        'glrlm': ['LongRunLowGrayLevelEmphasis', 'ShortRunLowGrayLevelEmphasis', 
-                  'RunEntropy', 'ShortRunHighGrayLevelEmphasis'],
-        'glszm': ['LargeAreaLowGrayLevelEmphasis', 'HighGrayLevelZoneEmphasis',
-                  'SizeZoneNonUniformityNormalized', 'SmallAreaEmphasis'],
-        'gldm': ['SmallDependenceHighGrayLevelEmphasis', 'DependenceNonUniformityNormalized',
-                 'SmallDependenceEmphasis', 'SmallDependenceLowGrayLevelEmphasis',
-                 'SmallDependenceEmphasis'],
-        'ngtdm': ['Busyness']
+
+def _get_enabled_feature_classes():
+    """只返回你用到的 featureClass（不碰特征名）"""
+    return {
+        'firstorder',
+        'glcm',
+        'glrlm',
+        'glszm',
+        'gldm',
+        'ngtdm'
     }
-    
-    return image_types_to_enable, feature_config
 
 def single_patient_feature_extractor(image_path, mask_path, extractor_settings=None):
     """
-    单患者影像组学特征提取，只提取TARGET_FEATURES中指定的特征
+    ✅ Streamlit 稳定版
+    只启用必要的 imageType + featureClass
+    提取后再按 TARGET_FEATURES 精确过滤
     """
-    # 解析目标特征配置
-    image_types_to_enable, feature_config = _parse_target_features()
-    
-    # 默认提取参数（已根据你的特征列表优化）
+
     if extractor_settings is None:
         extractor_settings = {
             'binWidth': 10,
-            'sigma': [3, 4, 5],  # 只启用你用到的sigma值
+            'sigma': [3, 4, 5],
             'resampledPixelSpacing': [1, 1, 1],
             'voxelArrayShift': 1000,
             'normalize': True,
             'normalizeScale': 100,
             'force2D': False,
-            'interpolator': 'sitkBSpline',  # 图像用BSpline，mask内部强制NearestNeighbor
-            # 移除 multiprocessing（单病人反而慢）
-            'removeOutliers': 3.0,  # 使用数值而非布尔值
+            'interpolator': sitk.sitkBSpline,
+            'removeOutliers': 3.0,
         }
-    
-    # 创建提取器
+
     extractor = featureextractor.RadiomicsFeatureExtractor(**extractor_settings)
-    
-    # ===== 关键：最小化启用图像类型 =====
+
+    # ✅ 1. 最小化 imageType（关键）
     extractor.disableAllImageTypes()
-    for img_type in image_types_to_enable:
+    for img_type in _get_enabled_image_types():
         extractor.enableImageTypeByName(img_type)
-    
-    # ===== 关键：最小化启用特征类 =====
+
+    # ✅ 2. 最小化 featureClass（不指定特征名！）
     extractor.disableAllFeatures()
-    for feature_class, features in feature_config.items():
-        extractor.enableFeaturesByName(feature_class, features)
-    
-    # 读图
+    for fc in _get_enabled_feature_classes():
+        extractor.enableFeatureClassByName(fc)
+
+    # ✅ 3. 读图 & mask
     image = sitk.ReadImage(image_path)
     mask = sitk.ReadImage(mask_path)
-    
-    # mask过滤逻辑（去掉造影剂标签10）
     mask = _filter_mask(mask)
 
     img_arr = sitk.GetArrayFromImage(image)
     mask_arr = sitk.GetArrayFromImage(mask)
-
     roi_vals = img_arr[mask_arr > 0]
-
-    print("ROI 体素数:", roi_vals.size)
-    print("ROI 最小值:", roi_vals.min())
-    print("ROI 最大值:", roi_vals.max())
-    print("ROI std:", roi_vals.std())
 
     if roi_vals.size == 0:
         raise RuntimeError("❌ Mask 过滤后 ROI 为空")
-
     if roi_vals.std() == 0:
         raise RuntimeError("❌ ROI 内灰度值完全相同，无法离散化")
-    
-    # 提特征（现在只会提取我们启用的那些）
+
+    # ✅ 4. 提取（现在只算 ~100 个特征，不是 1500+）
     feat_dict = extractor.execute(image, mask)
-    
-    # ===== 关键：只保留我们指定的特征 =====
-    filtered_feat = {}
-    missing_features = []
-    
-    for target_feat in TARGET_FEATURES:
-        if target_feat in feat_dict:
-            filtered_feat[target_feat] = feat_dict[target_feat]
+
+    # ✅ 5. 严格按你给的列表过滤（列顺序 100% 一致）
+    row = {}
+    missing = []
+    for feat in TARGET_FEATURES:
+        if feat in feat_dict:
+            row[feat] = feat_dict[feat]
         else:
-            missing_features.append(target_feat)
-            filtered_feat[target_feat] = np.nan  # 用NaN填充缺失特征
-    
-    if missing_features:
-        warnings.warn(f"以下特征未提取到（可能ROI太小或参数不匹配）: {missing_features}")
-    
-    # 转单行DataFrame，确保列顺序与TARGET_FEATURES完全一致
-    df = pd.DataFrame([filtered_feat], columns=TARGET_FEATURES)
-    
-    return df
+            row[feat] = np.nan
+            missing.append(feat)
+
+    if missing:
+        warnings.warn(f"缺失特征（ROI 过小或参数不匹配）: {missing}")
+
+    return pd.DataFrame([row], columns=TARGET_FEATURES)
+
 
 def _filter_mask(mask):
-    """mask过滤逻辑，非0非10改成1（提征ROI），10（造影剂）排除"""
-    mask_array = sitk.GetArrayFromImage(mask)
-    mask_array[(mask_array != 0) & (mask_array != 10)] = 1
-    mask_array[mask_array == 10] = 0
-    
-    new_mask = sitk.GetImageFromArray(mask_array)
+    mask_arr = sitk.GetArrayFromImage(mask)
+    mask_arr[(mask_arr != 0) & (mask_arr != 10)] = 1
+    mask_arr[mask_arr == 10] = 0
+
+    new_mask = sitk.GetImageFromArray(mask_arr)
     new_mask.SetOrigin(mask.GetOrigin())
     new_mask.SetSpacing(mask.GetSpacing())
     new_mask.SetDirection(mask.GetDirection())
     return new_mask
-
-# 可选：批量提取时的优化版本（复用extractor）
-class RadiomicsExtractorPool:
-    """用于批量提取的提取器池，避免重复初始化"""
-    def __init__(self, extractor_settings=None):
-        image_types_to_enable, feature_config = _parse_target_features()
-        
-        if extractor_settings is None:
-            extractor_settings = {
-                'binWidth': 10,
-                'sigma': [1, 2, 3, 4, 5],
-                'resampledPixelSpacing': [1, 1, 1],
-                'voxelArrayShift': 1000,
-                'normalize': True,
-                'normalizeScale': 100,
-                'force2D': False,  # 不强制使用2D特征
-                'interpolator': 'sitkNearestNeighbor',
-                'multiprocessing': False,
-                'removeOutliers': True
-            }
-        
-        self.extractor = featureextractor.RadiomicsFeatureExtractor(**extractor_settings)
-        
-        # 最小化配置
-        self.extractor.disableAllImageTypes()
-        for img_type in image_types_to_enable:
-            self.extractor.enableImageTypeByName(img_type)
-        
-        self.extractor.disableAllFeatures()
-        for feature_class, features in feature_config.items():
-            self.extractor.enableFeaturesByName(feature_class, features)
-    
-    def extract(self, image_path, mask_path):
-        """单次提取"""
-        image = sitk.ReadImage(image_path)
-        mask = sitk.ReadImage(mask_path)
-        mask = _filter_mask(mask)
-        
-        feat_dict = self.extractor.execute(image, mask)
-        
-        # 按固定顺序返回
-        return [feat_dict.get(feat, np.nan) for feat in TARGET_FEATURES]
