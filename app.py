@@ -1,35 +1,3 @@
-# app.py （最顶部加入）
-import os
-import sys
-
-# 1. 确保 .streamlit 目录存在
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-STREAMLIT_DIR = os.path.join(BASE_DIR, ".streamlit")
-CONFIG_PATH = os.path.join(STREAMLIT_DIR, "config.toml")
-
-if not os.path.exists(STREAMLIT_DIR):
-    os.makedirs(STREAMLIT_DIR)
-
-# 2. 检查并写入配置
-if not os.path.exists(CONFIG_PATH):
-    print("Creating Streamlit config file for large file uploads...")
-    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-        f.write("[server]\n")
-        f.write("maxUploadSize = 1024\n")  # 设置为 1024 MB
-    print("Config created. Please restart the app if it was already running.")
-else:
-    # 可选：检查现有配置是否足够大
-    with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-        content = f.read()
-        if "maxUploadSize" not in content:
-            with open(CONFIG_PATH, "a", encoding="utf-8") as f:
-                f.write("\n[server]\nmaxUploadSize = 1024\n")
-        # 简单检查数值（如果需要更复杂的解析，建议用 configparser 或 toml 库）
-        elif "maxUploadSize = 200" in content:
-             print("Warning: maxUploadSize is set to 200MB. Consider increasing it for medical images.")
-
-
-# app.py （精简最终版）
 import streamlit as st
 import pandas as pd
 import joblib
