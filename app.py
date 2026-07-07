@@ -71,7 +71,7 @@ if st.button("Start Prediction"):
         # 5.4 对齐训练特征列
         missing = [f for f in expected_features if f not in feat_df.columns]
         if missing:
-            st.error(f"Extracted features missing columns (check radiomics settings): {missing[:5]}...")
+            st.error(f"Extracted features missing columns (check radiomics settings): {missing}")
             st.stop()
 
         infer_df = feat_df[expected_features]
