@@ -13,7 +13,7 @@ def single_patient_feature_extractor(image_path, mask_path, extractor_settings=N
     if extractor_settings is None:
         extractor_settings = {
             'binWidth': 10,
-            'sigma': [1, 2, 3, 4, 5],
+            'sigma': [3, 4, 5],
             'resampledPixelSpacing': [1, 1, 1],
             'voxelArrayShift': 1000,
             'normalize': True,
@@ -25,8 +25,17 @@ def single_patient_feature_extractor(image_path, mask_path, extractor_settings=N
         }
     
     extractor = featureextractor.RadiomicsFeatureExtractor(**extractor_settings)
-    extractor.enableAllImageTypes()
-    
+    #extractor.enableAllImageTypes()   
+
+    #先禁用全部图像类型
+    extractor.disableAllImageTypes()
+    for img_type in {'Wavelet','LoG','Square','Logarithm','Gradient','LocalBinaryPattern3D'}:  #指定要哪些图像类型
+        extractor.enableImageTypeByName(img_type)
+
+    #先禁用全部特征类型
+    extractor.disableAllFeatures()
+    for fc in {'firstorder','glcm','glrlm','glszm','gldm','ngtdm'}:
+        extractor.enableFeatureClassByName(fc)   # ← 整类全开
     # 读图
     image = sitk.ReadImage(image_path)
     mask = sitk.ReadImage(mask_path)
