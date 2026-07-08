@@ -20,7 +20,7 @@ def single_patient_feature_extractor(image_path, mask_path, extractor_settings=N
             'normalizeScale': 100,
             'force2D': False,  # 不强制使用2D特征
             'interpolator': 'sitkNearestNeighbor',
-            'multiprocessing': False,
+            'multiprocessing': True,
             'removeOutliers': True
         }
     
