@@ -111,7 +111,7 @@ if st.button("Start Prediction"):
                     st.info(f"Cleaned up temporary {path_name} file")
                 except Exception as e:
                     st.warning(f"Could not remove temporary {path_name} file: {e}")
-    
+    '''
     # 1. 加载模型和特征列表（缓存）- 使用绝对路径
     @st.cache_resource
     def load_resources():
@@ -149,3 +149,4 @@ if st.button("Start Prediction"):
             st.error("🔴 Model predicts poor 30-day prognosis (probability > 0.3571)")
         else:
             st.success("🟢 Model predicts good 30-day prognosis (probability ≤ 0.3571)")
+    '''
