@@ -24,13 +24,13 @@ rvlv_provided = not (rv_value == 0.0 and lv_value == 0.0)
 # 4. 图像 / mask 上传（支持 .nii 和 .nii.gz）
 st.subheader("Upload Image + Mask")
 img_file = st.file_uploader(
-    "CT image (.nii or .nii.gz)",
-    type=["nii", "gz"],  # 支持 .nii 和 .nii.gz
+    "CT image",
+    type=["nii", "nii.gz"],  # 支持 .nii 和 .nii.gz
     key="img"
 )
 mask_file = st.file_uploader(
-    "Segmentation mask (.nii or .nii.gz)",
-    type=["nii", "gz"],  # 支持 .nii 和 .nii.gz
+    "Segmentation mask)",
+    type=["nii", "nii.gz"],  # 支持 .nii 和 .nii.gz
     key="mask"
 )
 
@@ -111,7 +111,7 @@ if st.button("Start Prediction"):
                     st.info(f"Cleaned up temporary {path_name} file")
                 except Exception as e:
                     st.warning(f"Could not remove temporary {path_name} file: {e}")
-    '''
+
     # 1. 加载模型和特征列表（缓存）- 使用绝对路径
     @st.cache_resource
     def load_resources():
@@ -149,4 +149,4 @@ if st.button("Start Prediction"):
             st.error("🔴 Model predicts poor 30-day prognosis (probability > 0.3571)")
         else:
             st.success("🟢 Model predicts good 30-day prognosis (probability ≤ 0.3571)")
-    '''
+
