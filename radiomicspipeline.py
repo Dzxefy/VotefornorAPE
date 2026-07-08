@@ -34,7 +34,7 @@ def single_patient_feature_extractor(image_path, mask_path, extractor_settings=N
 
     #先禁用全部特征类型
     extractor.disableAllFeatures()
-    for fc in {'firstorder','glcm','glrlm','glszm','gldm','ngtdm'}:
+    for fc in {'firstorder'}:
         extractor.enableFeatureClassByName(fc)   # ← 整类全开
     # 读图
     image = sitk.ReadImage(image_path)
