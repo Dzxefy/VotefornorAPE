@@ -7,6 +7,16 @@ import pathlib
 from radiomicspipeline import single_patient_feature_extractor
 from UnifiedRFESVCEnsemble import UnifiedRFESVCEnsemble
 
+# 1. 加载模型和特征列表（缓存）- 使用绝对路径
+@st.cache_resource
+def load_resources():
+    base = pathlib.Path(__file__).parent
+    model = joblib.load(base / "saved_models" / "ensemble_model.pkl")
+    expected_features = joblib.load(base / "saved_models" / "feature_list.pkl")
+    return model, expected_features
+
+model, expected_features = load_resources()
+
 # 2. 页面 UI
 st.title("Radiomics-Based Prognostic Assessment Tool for Normotensive Acute Pulmonary Embolism Patients")
 st.write("Upload CT image + segmentation mask, auto-extract radiomics features and predict 30-day prognosis.")
@@ -89,10 +99,10 @@ if st.button("Start Prediction"):
             feat_df["LV"] = lv_value
 
         # 5.4 对齐训练特征列
-        missing = [f for f in expected_features if f not in feat_df.columns]
-        if missing:
-            st.error(f"Extracted features missing columns (check radiomics settings): {missing}")
-            st.stop()
+        #missing = [f for f in expected_features if f not in feat_df.columns]
+        #if missing:
+        #    st.error(f"Extracted features missing columns (check radiomics settings): {missing}")
+        #    st.stop()
 
         infer_df = feat_df[expected_features]
         st.success("Feature extraction done!")
@@ -111,16 +121,8 @@ if st.button("Start Prediction"):
                     st.info(f"Cleaned up temporary {path_name} file")
                 except Exception as e:
                     st.warning(f"Could not remove temporary {path_name} file: {e}")
-
-    # 1. 加载模型和特征列表（缓存）- 使用绝对路径
-    @st.cache_resource
-    def load_resources():
-        base = pathlib.Path(__file__).parent
-        model = joblib.load(base / "saved_models" / "ensemble_model.pkl")
-        expected_features = joblib.load(base / "saved_models" / "feature_list.pkl")
-        return model, expected_features
     
-    model, expected_features = load_resources()
+
     # 6. 预测 + 展示
     pred_proba = model.predict(infer_df)[0]
     pred_label = 1 if pred_proba > 0.3571 else 0
