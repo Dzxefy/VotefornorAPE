@@ -28,9 +28,9 @@ def single_patient_feature_extractor(image_path, mask_path, extractor_settings=N
     #extractor.enableAllImageTypes()   
 
     #先禁用全部图像类型
-    extractor.disableAllImageTypes()
-    for img_type in {'Wavelet','LoG','Square','Logarithm','Gradient',"LBP3D"}:  #指定要哪些图像类型
-        extractor.enableImageTypeByName(img_type)
+    extractor.enableAllImageTypes()
+    #for img_type in {'Wavelet','LoG','Square','Logarithm','Gradient',"LBP3D"}:  #指定要哪些图像类型
+    #    extractor.enableImageTypeByName(img_type)
 
     #先禁用全部特征类型
     extractor.disableAllFeatures()
