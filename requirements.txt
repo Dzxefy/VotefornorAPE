@@ -6,4 +6,6 @@ pandas==2.2.3
 streamlit == 1.50
 git+https://github.com/AIM-Harvard/pyradiomics@v3.1.0
 SimpleITK == 2.5.3
-
+scikit-image == 0.24.0
+scipy == 1.13.1
+trimesh == 4.11.5
