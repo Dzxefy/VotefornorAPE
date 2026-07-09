@@ -28,14 +28,14 @@ def single_patient_feature_extractor(image_path, mask_path, extractor_settings=N
     #extractor.enableAllImageTypes()   
 
     #先禁用全部图像类型
-    extractor.enableAllImageTypes()
-    #for img_type in {'Wavelet','LoG','Square','Logarithm','Gradient',"LBP3D"}:  #指定要哪些图像类型
-    #    extractor.enableImageTypeByName(img_type)
+    extractor.disableAllImageTypes()
+    for img_type in {'Wavelet','LoG','Square','Logarithm','Gradient',"LBP3D"}:  #指定要哪些图像类型
+        extractor.enableImageTypeByName(img_type)
 
     #先禁用全部特征类型
-    extractor.disableAllFeatures()
-    for fc in  {'firstorder','glcm','glrlm','glszm','gldm','ngtdm'}:
-        extractor.enableFeatureClassByName(fc)   # ← 整类全开
+    extractor.enableAllFeatures()
+    #for fc in  {'firstorder','glcm','glrlm','glszm','gldm','ngtdm'}:
+    #    extractor.enableFeatureClassByName(fc)   # ← 整类全开
     # 读图
     image = sitk.ReadImage(image_path)
     mask = sitk.ReadImage(mask_path)
