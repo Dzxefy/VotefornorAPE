@@ -86,8 +86,8 @@ if st.button("Start Prediction"):
             mask_path = tmp_mask.name
 
         # 验证文件后缀是否正确
-        st.info(f"Image saved as: {img_path}")
-        st.info(f"Mask saved as: {mask_path}")
+        #st.info(f"Image saved as: {img_path}")
+        #st.info(f"Mask saved as: {mask_path}")
         
         # 5.2 自动提征
         with st.spinner("Extracting radiomics features..."):
@@ -99,10 +99,10 @@ if st.button("Start Prediction"):
             feat_df["LV"] = lv_value
 
         # 5.4 对齐训练特征列
-        #missing = [f for f in expected_features if f not in feat_df.columns]
-        #if missing:
-        #    st.error(f"Extracted features missing columns (check radiomics settings): {missing}")
-        #    st.stop()
+        missing = [f for f in expected_features if f not in feat_df.columns]
+        if missing:
+            st.error(f"Extracted features missing columns (check radiomics settings): {missing}")
+            st.stop()
 
         infer_df = feat_df[expected_features]
         st.success("Feature extraction done!")
@@ -118,11 +118,11 @@ if st.button("Start Prediction"):
             if path_var and os.path.exists(path_var):
                 try:
                     os.remove(path_var)
-                    st.info(f"Cleaned up temporary {path_name} file")
+                    #st.info(f"Cleaned up temporary {path_name} file")
                 except Exception as e:
                     st.warning(f"Could not remove temporary {path_name} file: {e}")
     
-'''
+
     # 6. 预测 + 展示
     pred_proba = model.predict(infer_df)[0]
     pred_label = 1 if pred_proba > 0.3571 else 0
@@ -152,4 +152,4 @@ if st.button("Start Prediction"):
         else:
             st.success("🟢 Model predicts good 30-day prognosis (probability ≤ 0.3571)")
 
-'''
+
