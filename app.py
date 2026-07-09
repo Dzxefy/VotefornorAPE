@@ -122,7 +122,7 @@ if st.button("Start Prediction"):
                 except Exception as e:
                     st.warning(f"Could not remove temporary {path_name} file: {e}")
     
-
+'''
     # 6. 预测 + 展示
     pred_proba = model.predict(infer_df)[0]
     pred_label = 1 if pred_proba > 0.3571 else 0
@@ -152,3 +152,4 @@ if st.button("Start Prediction"):
         else:
             st.success("🟢 Model predicts good 30-day prognosis (probability ≤ 0.3571)")
 
+'''
